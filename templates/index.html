@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VisiteTech OCR</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@700&display=swap');
+        .plate-font { font-family: 'Cairo', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-100">
+
+    <header class="bg-[#064e3b] text-white p-4 flex justify-between items-center shadow-lg">
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 bg-emerald-500 rounded flex items-center justify-center font-bold">V</div>
+            <span class="font-bold text-xl">VisiteTech <span class="font-light">Scanner</span></span>
+        </div>
+        <div class="bg-emerald-900/50 px-3 py-1 rounded-full text-[10px] border border-emerald-500/30">SYSTÈME ACTIF</div>
+    </header>
+
+    <main class="max-w-[1200px] mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <div class="lg:col-span-2 space-y-4">
+            <div class="bg-black rounded-2xl overflow-hidden relative border-4 border-zinc-800 shadow-2xl">
+                <img src="{{ url_for('video_feed') }}" class="w-full aspect-video object-contain">
+                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div class="border-2 border-emerald-500/40 w-[60%] h-[30%] rounded-xl"></div>
+                </div>
+            </div>
+            <button id="btn-scan" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl shadow-lg transition-transform active:scale-95">
+                🔄 DÉMARRER NOUVEAU SCAN
+            </button>
+        </div>
+
+        <div class="space-y-6">
+            <section class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <h3 class="text-slate-400 text-[10px] font-bold uppercase mb-4 text-center">Résultat de l'analyse</h3>
+                <div id="result-card" class="bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl py-10 px-4 text-center">
+                    <div id="plate-display" class="text-4xl plate-font text-slate-300 break-words leading-relaxed">
+                        -- -- --
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-4 uppercase font-bold tracking-widest">Matricule Identifié</p>
+                </div>
+                
+                <div class="mt-6">
+                    <div class="flex justify-between text-[10px] mb-2 font-bold uppercase">
+                        <span class="text-slate-500">Confiance</span>
+                        <span id="conf-text" class="text-emerald-600">0%</span>
+                    </div>
+                    <div class="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
+                        <div id="conf-bar" class="bg-emerald-500 h-full w-0 transition-all duration-500"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="bg-zinc-900 rounded-2xl p-5 shadow-xl h-[250px] flex flex-col">
+                <h3 class="text-zinc-600 text-[10px] font-bold uppercase mb-3">Logs IA</h3>
+                <div id="log-box" class="flex-1 overflow-y-auto font-mono text-[11px] text-emerald-500/80">
+                    <p>[READY] En attente de détection...</p>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        const socket = io();
+        const plateDisplay = document.getElementById('plate-display');
+        const confBar = document.getElementById('conf-bar');
+        const confText = document.getElementById('conf-text');
+        const resultCard = document.getElementById('result-card');
+        const logBox = document.getElementById('log-box');
+
+        socket.on('detected_plate', (data) => {
+            plateDisplay.innerText = data.plate;
+            confBar.style.width = data.confidence + '%';
+            confText.innerText = data.confidence + '%';
+
+            if(data.status === 'FINAL') {
+                plateDisplay.classList.remove('text-slate-300');
+                plateDisplay.classList.add('text-emerald-700');
+                resultCard.className = "bg-emerald-50 border-2 border-emerald-200 rounded-2xl py-10 px-4 text-center";
+            }
+        });
+
+        socket.on('log_update', (data) => {
+            const p = document.createElement('p');
+            p.innerHTML = `<span class="text-zinc-600">[${new Date().toLocaleTimeString()}]</span> ${data.msg}`;
+            logBox.prepend(p);
+        });
+
+        document.getElementById('btn-scan').onclick = () => {
+            socket.emit('reset_scan');
+            location.reload(); // Rafraîchit pour vider les variables
+        };
+    </script>
+</body>
+</html>
